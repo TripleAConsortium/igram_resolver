@@ -59,14 +59,33 @@ def resolve(instagram_url: str, timeout: int = 20000) -> list[str]:
         page.wait_for_timeout(timeout)
         browser.close()
 
-    # Extract URLs from response.
-    for resp in api_response:
-        for item in resp.get("url", []):
-            url = item if isinstance(item, str) else item.get("url", "")
-            if url:
-                media_urls.append(url)
+    # Extract URLs from response (handles both flat and nested carousel formats).
+    def _extract(obj):
+        if isinstance(obj, str) and obj.startswith("http"):
+            media_urls.append(obj)
+        elif isinstance(obj, dict):
+            u = obj.get("url", "")
+            if isinstance(u, str) and u.startswith("http"):
+                media_urls.append(u)
+            else:
+                for v in obj.values():
+                    if isinstance(v, (list, dict)):
+                        _extract(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                _extract(item)
 
-    return media_urls
+    _extract(api_response)
+
+    # Deduplicate preserving order.
+    seen = set()
+    unique = []
+    for u in media_urls:
+        if u not in seen and "igram.world" in u:
+            seen.add(u)
+            unique.append(u)
+
+    return unique
 
 
 if __name__ == "__main__":
