@@ -1,7 +1,10 @@
 """
 Instagram media URL resolver via igram.world using Playwright headless browser.
 """
+import threading
 from playwright.sync_api import sync_playwright
+
+_lock = threading.Lock()
 
 
 def resolve(instagram_url: str, timeout: int = 20000) -> list[str]:
@@ -17,7 +20,7 @@ def resolve(instagram_url: str, timeout: int = 20000) -> list[str]:
     """
     media_urls = []
 
-    with sync_playwright() as p:
+    with _lock, sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto("https://igram.world/", wait_until="networkidle")
